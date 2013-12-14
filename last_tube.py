@@ -8,31 +8,43 @@ import json
 import math
 
 stations = {}
-in_out_hash = {
+stations_hash = {
 'BAK': {'inbound':'S',
-        'outbound':'N'},
+        'outbound':'N',
+        'name':'Bakerloo'},
 'VIC': {'inbound':'S',
-        'outbound':'N'},
+        'outbound':'N',
+        'name':'Victoria'},
 'NTN': {'inbound':'S',
-        'outbound':'N'},
+        'outbound':'N',
+        'name':'Northern'},
 'CEN': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'Central'},
 'CIR': {'inbound':'CCW',
-        'outbound':'CW'},
+        'outbound':'CW',
+        'name':'Circle'},
 'DIS': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'District'},
 'HAM': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'Ham & City'},
 'JUB': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'Jubilee'},
 'MET': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'Metropolitan'},
 'PIC': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'Piccadilly'},
 'WAC': {'inbound':'W',
-        'outbound':'E'},
+        'outbound':'E',
+        'name':'W & City'},
 'DLR': {'inbound':'W/N',
-        'outbound':'E/S'}
+        'outbound':'E/S',
+        'name':'DLR'}
 }
 
 def load_xml(filename, stations):
@@ -76,9 +88,9 @@ def journey_parse(root, JPS, line, journeys, stations):
 #            time = (delta + orig).time().strftime("%H:%M:%S")
 #            d['time'] = time
         xp = "//JourneyPattern[@id='" + j.JourneyPatternRef + "']"
-        d['direction'] = in_out_hash[line][root.xpath(xp)[0].Direction]
+        d['direction'] = stations_hash[line][root.xpath(xp)[0].Direction]
         d['jps_ref'] = str(root.xpath(xp)[0].JourneyPatternSectionRefs)
-        d['line'] = line
+        d['line'] = stations_hash[line]['name']
         d['tt'] = {}
         days_l = []
         try:
