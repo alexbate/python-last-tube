@@ -1,3 +1,9 @@
+Install python,pip.
+
+Register for the Journey Planner timetables at http://www.tfl.gov.uk/businessandpartners/syndication/16492.aspx
+
+Put your email in the feed URL in update.sh
+
 Requires libxml2-dev libxslt-dev, installation on debian/ubuntu:
 
 apt-get install libxml2-dev libxslt-dev
@@ -5,3 +11,10 @@ apt-get install libxml2-dev libxslt-dev
 Then:
 
 pip install -r requirements.txt
+
+To run do (it will take a while):
+
+./update.sh
+python last_tube_from_loc.py
+
+Add update.sh to your crontab, the data refreshes once a week I think.

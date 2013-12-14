@@ -1,5 +1,4 @@
 #!/bin/bash
-cd /home/matt/tube
 mkdir ./data
 mkdir ./data1
 wget "http://www.tfl.gov.uk/tfl/businessandpartners/syndication/feed.aspx?email=<YOUREMAIL>&feedId=15" -O ./data.zip
