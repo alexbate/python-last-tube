@@ -1,0 +1,41 @@
+import json
+import os
+import last_tube
+from datetime import timedelta
+from datetime import datetime
+from flask import Flask
+app = Flask(__name__)
+
+stations, journeys = last_tube.load_data()
+mtime = os.path.getmtime('journeys.txt')
+
+@app.route('/get/<lat>/<lon>')
+def get_last_by_loc(lat,lon):
+    global mtime
+    aday = timedelta(days = 1)
+    if os.path.getmtime('journeys.txt') > mtime:
+        global stations
+        global journeys
+        mtime = os.path.getmtime('journeys.txt')
+        stations, journeys = last_tube.load_data()
+    lat = str(lat)
+    lon = str(lon)
+    codes = last_tube.nearest_stations(lat,lon,3,stations)
+    day = datetime.now().strftime('%A')
+    if datetime.now().hour > 0 and datetime.now().hour < 4:
+        day = (datetime.now() - aday).strftime('%A')
+    out = []
+    for code in codes:
+        out += last_tube.get_last_all(code[1], day, stations, journeys)
+    return json.dumps(out)
+ 
+@app.route('/test.html')
+def load():
+    with open("./test.html", 'r') as infile:
+
+      return infile.read()
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0')
+
+

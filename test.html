@@ -1,0 +1,39 @@
+<!DOCTYPE html>  
+
+<html>
+<head>
+<title>Geolocation example: Checking for geolocation support</title>
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+<script src="http://code.jquery.com/ui/1.8.23/jquery-ui.min.js"></script>
+<script>
+function showPosition(position)
+  {
+  var x=document.getElementById("demo");
+  x.innerHTML="Latitude: " + position.coords.latitude + 
+  "<br>Longitude: " + position.coords.longitude;
+  $.getJSON( "get/" + position.coords.latitude + "/" + position.coords.longitude, function( data ) {
+    for(var i = 0;i < data.length; ++i) 
+        {
+            $('body').append("<tr><td id='name'>" + data[i]["station"]+ ",</td><td> " + data[i]["line"] + ",</td><td>" + data[i]["direction"] + ",</td><td>" + data[i]["last"][0] + "</td></tr>");
+        }
+    });
+  }
+function getLocation()
+  {
+  if (navigator.geolocation)
+    {
+    navigator.geolocation.getCurrentPosition(showPosition);
+    }
+  else{x.innerHTML="Geolocation is not supported by this browser.";}
+  }
+window.onload = (function() {
+  getLocation();
+});
+</script>
+ 
+</head>
+<body>
+<p id="demo">AAA</p>
+
+</body>
+</html>

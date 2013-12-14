@@ -1,0 +1,7 @@
+Requires libxml2-dev libxslt-dev, installation on debian/ubuntu:
+
+apt-get install libxml2-dev libxslt-dev
+
+Then:
+
+pip install -r requirements.txt
