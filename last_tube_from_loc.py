@@ -12,7 +12,7 @@ mtime = os.path.getmtime('journeys.txt')
 @app.route('/get/<lat>/<lon>')
 def get_last_by_loc(lat,lon):
     global mtime
-    aday = timedelta(days = 1)
+    #If the journeys have been reloaded then read again.
     if os.path.getmtime('journeys.txt') > mtime:
         global stations
         global journeys
@@ -22,6 +22,8 @@ def get_last_by_loc(lat,lon):
     lon = str(lon)
     codes = last_tube.nearest_stations(lat,lon,3,stations)
     day = datetime.now().strftime('%A')
+    aday = timedelta(days = 1)
+    #If it's after midnight we still want "Todays'" last tube
     if datetime.now().hour > 0 and datetime.now().hour < 4:
         day = (datetime.now() - aday).strftime('%A')
     out = []

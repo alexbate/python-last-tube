@@ -6,8 +6,10 @@ import glob
 import pprint
 import json
 import math
+from pyproj import Proj, transform
 
 stations = {}
+#This turns inbound/outbound into a best guess direction
 stations_hash = {
 'BAK': {'inbound':'S',
         'outbound':'N',
@@ -48,6 +50,10 @@ stations_hash = {
 }
 
 def load_xml(filename, stations):
+    '''
+    Load a TXC xml file, create a dict of JourneyPatternSections,
+    a dict of the stations and their locations.
+    '''
     with open(filename) as f:
         xml = f.read()
     root = objectify.fromstring(xml)
@@ -58,21 +64,23 @@ def load_xml(filename, stations):
     for sp in root.StopPoints.iterchildren():
         if not sp.AtcoCode in stations:
             stations[str(sp.AtcoCode)] = str(sp.Descriptor.CommonName)
+            #strip the last number, assume platform?
             stations[str(sp.AtcoCode)[0:-1]] = {'easting':str(sp.Place.Location.Easting),
                                                'northing': str(sp.Place.Location.Northing)                                              }
     line = filename.split("-")[1][0:-1]
     return (JPS, root, stations, line)
         
 def timeinseconds(string):
+    '''
+    Convert the TXC time string into seconds
+    Formats seen PTxxS, PTxM, PTxMxxS
+    '''
     string = str(string)
     a = string.split("PT")[1].split('S')[0].split("M")
     if len(a) == 2:
         time = int(a[0]) * 60
         try:
             time+= int(a[1])
-#            if int(a[1]) == 30:
-#                print "adding 30"
-#                time += 30
         except ValueError:
             pass
     else:
@@ -80,19 +88,23 @@ def timeinseconds(string):
     return time
 
 def journey_parse(root, JPS, line, journeys, stations):
+    '''
+    The business bit, take each Journey and build
+    a timetable
+    '''
     for j in root.VehicleJourneys.iterchildren():
         d = {'time':str(j.DepartureTime),'jp_ref':str(j.JourneyPatternRef)}
-#        if str(j.DepartureTime)[-2:] == "30":
-#            delta = timedelta(seconds = 30)
-#            orig = datetime.strptime(str(j.DepartureTime), "%H:%M:%S")
-#            time = (delta + orig).time().strftime("%H:%M:%S")
-#            d['time'] = time
         xp = "//JourneyPattern[@id='" + j.JourneyPatternRef + "']"
         d['direction'] = stations_hash[line][root.xpath(xp)[0].Direction]
+        # We need this to find the time between stops
         d['jps_ref'] = str(root.xpath(xp)[0].JourneyPatternSectionRefs)
         d['line'] = stations_hash[line]['name']
         d['tt'] = {}
         days_l = []
+        # Here are some scary assumptions...
+        # Mon-Sat last tubes are same,
+        # Sunday tubes after midnight are tagged
+        # Monday, for now ignore Bank Hols.
         try:
            first_day = j.OperatingProfile.RegularDayType.DaysOfWeek.iterchildren().next().tag
         except AttributeError:
@@ -109,30 +121,24 @@ def journey_parse(root, JPS, line, journeys, stations):
                 days_l = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
         else:
             days_l = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-#        for days in j.OperatingProfile.RegularDayType.DaysOfWeek.iterchildren():
-#            #if days.tag == "Sunday":
-#            #    days_l = ['Sunday']
-#            if days.tag == "Monday" or days.tag == "MondayToFriday":
-#                days_l = ['Sunday']
-#            else:
-#                days_l = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
         d['days'] = days_l
         i = 0
         rt = 0
+        #for each stop
         for jptl in JPS[d['jps_ref']].iterchildren():
-            #if i + 1 == len(JPS[d['jps_ref']].iterchildren()):
-            #    break
+            #if first stop
             if i == 0:
-    #             d['tt'][i] = {'station':jptl.From.StopPointRef, 'time': d['time']}
+                #take the start time
                 d['tt'][str(jptl.From.StopPointRef)] = str(d['time'])
+                #add the time to the next stop
                 rt += timeinseconds(jptl.RunTime)
                 a = datetime.strptime(str(d['time']), "%H:%M:%S")
                 try:
+                    #add the wait at the next station (if it waits)
                     rt += timeinseconds(jptl.To.WaitTime)
                 except AttributeError:
                     pass
                 b = timedelta(seconds = rt)
-    #             d['tt'][i+1] = {'station':jptl.To.StopPointRef, 'time': (a + b).time().strftime("%H:%M:%S")}            
                 d['tt'][str(jptl.To.StopPointRef)] = (a + b).time().strftime("%H:%M:%S")
             else:
                 rt += timeinseconds(jptl.RunTime) 
@@ -142,25 +148,33 @@ def journey_parse(root, JPS, line, journeys, stations):
                 except AttributeError:
                     pass
                 b = timedelta(seconds = rt)
-    #             d['tt'][i+1] = {'station':jptl.To.StopPointRef, 'time': (a + b).time().strftime("%H:%M:%S")} 
                 d['tt'][str(jptl.To.StopPointRef)] = (a + b).time().strftime("%H:%M:%S")
             i+=1
         d['destination'] = str(stations[jptl.To.StopPointRef])
+        #pop the destination (as you can't take a tube nowhere)
         d['tt'].pop(str(jptl.To.StopPointRef))
         journeys.append(d)
     return journeys
 
 def get_last(station, day, stations, journeys):
+    '''
+    Find the last tube at a given station,
+    on a given day.
+    '''
     ret = []
     t = {}
     for j in journeys:
         to_add = None
+        #if the journey is today
         if day in j['days']:
             try:    	    
+                #and it passes our station
                 to_add = (j['tt'][station], j['destination'])
             except KeyError:
                 pass
             if to_add:
+                #build a dict of line/direction/(time,destingation)
+                #for our station
                 try:
                     t[j['line']][j['direction']].append(to_add)
                 except KeyError as e:
@@ -175,6 +189,7 @@ def get_last(station, day, stations, journeys):
         for direction, times in directions.items():
            last = [] 
            for time in times:
+               #times after midnight before 4 are last
                if time[0][0:2] in ['00','01','02','03']:
                    last.append(time)
            if last == []:
@@ -184,6 +199,10 @@ def get_last(station, day, stations, journeys):
     return ret
 
 def get_last_all(station, day, stations, journeys):
+    '''
+    because platform numbers are added to station codes
+    loop through 0 to 9 to catch all lines at that station
+    '''
     out = []
     out += get_last(station, day, stations, journeys)
     for i in range(0,9):
@@ -196,6 +215,10 @@ stations = {}
 mtime = os.path.getmtime('journeys.txt')
 
 def load_data():
+    '''
+    Create the journey/station data if
+    it doesn't exits, else read in.
+    '''
     try:
         with open('journeys.txt') as infile:
             journeys = json.load(infile) 
@@ -203,7 +226,6 @@ def load_data():
         for filename in glob.glob("./data/*.xml"):
             JPS, root, stations, line = load_xml(filename, stations)
             journeys = journey_parse(root, JPS, line, journeys, stations)
-    #
         with open('journeys.txt', 'w') as outfile:
             json.dump(journeys, outfile)
     try:
@@ -220,6 +242,9 @@ def load_data():
     return (stations, journeys)
 
 def reload_data():
+    '''
+    To force reload.
+    '''
     journeys = []
     stations = {}
     for filename in glob.glob("./data/*.xml"):
@@ -242,7 +267,6 @@ def reload_data():
 
     return True
 
-from pyproj import Proj, transform
 
 v84 = Proj(proj="latlong",towgs84="0,0,0",ellps="WGS84")
 v36 = Proj(proj="latlong", k=0.9996012717, ellps="airy",
@@ -263,6 +287,10 @@ def LL84toEN(longitude, latitude):
     return vgrid(vlon36, vlat36)
 
 def nearest_stations(lat,lon,number,stations):
+    '''
+    Find the number of nearest stations
+    to a lat/lon.
+    '''
     my_e = LL84toEN(lon,lat)[0]
     my_n = LL84toEN(lon,lat)[1]
     near_list = []
