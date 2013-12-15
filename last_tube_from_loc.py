@@ -24,7 +24,7 @@ def get_last_by_loc(lat,lon):
     day = datetime.now().strftime('%A')
     aday = timedelta(days = 1)
     #If it's after midnight we still want "Todays'" last tube
-    if datetime.now().hour > 0 and datetime.now().hour < 4:
+    if datetime.now().hour >= 0 and datetime.now().hour < 4:
         day = (datetime.now() - aday).strftime('%A')
     out = []
     for code in codes:
