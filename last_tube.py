@@ -69,7 +69,7 @@ def load_xml(filename, stations):
                                                'northing': str(sp.Place.Location.Northing)                                              }
     line = filename.split("-")[1][0:-1]
     return (JPS, root, stations, line)
-        
+
 def timeinseconds(string):
     '''
     Convert the TXC time string into seconds
@@ -92,6 +92,7 @@ def journey_parse(root, JPS, line, journeys, stations):
     The business bit, take each Journey and build
     a timetable
     '''
+    print("New call to hourney_parse")
     for j in root.VehicleJourneys.iterchildren():
         d = {'time':str(j.DepartureTime),'jp_ref':str(j.JourneyPatternRef)}
         xp = "//JourneyPattern[@id='" + j.JourneyPatternRef + "']"
@@ -141,7 +142,7 @@ def journey_parse(root, JPS, line, journeys, stations):
                 b = timedelta(seconds = rt)
                 d['tt'][str(jptl.To.StopPointRef)] = (a + b).time().strftime("%H:%M:%S")
             else:
-                rt += timeinseconds(jptl.RunTime) 
+                rt += timeinseconds(jptl.RunTime)
                 a = datetime.strptime(str(d['time']), "%H:%M:%S")
                 try:
                     rt += timeinseconds(jptl.To.WaitTime)
@@ -161,13 +162,14 @@ def get_last(station, day, stations, journeys):
     Find the last tube at a given station,
     on a given day.
     '''
+    print(station)
     ret = []
     t = {}
     for j in journeys:
         to_add = None
         #if the journey is today
         if day in j['days']:
-            try:    	    
+            try:
                 #and it passes our station
                 to_add = (j['tt'][station], j['destination'])
             except KeyError:
@@ -184,10 +186,10 @@ def get_last(station, day, stations, journeys):
                     else:
                         t[j['line']][j['direction']] = []
                     t[j['line']][j['direction']].append(to_add)
-      
+
     for line, directions in t.items():
         for direction, times in directions.items():
-           last = [] 
+           last = []
            for time in times:
                #times after midnight before 4 are last
                if time[0][0:2] in ['00','01','02','03']:
@@ -221,7 +223,7 @@ def load_data():
     '''
     try:
         with open('journeys.txt') as infile:
-            journeys = json.load(infile) 
+            journeys = json.load(infile)
     except IOError:
         for filename in glob.glob("./data/*.xml"):
             JPS, root, stations, line = load_xml(filename, stations)
@@ -231,7 +233,7 @@ def load_data():
     try:
         with open('stations.txt', 'r') as infile:
                 stations = json.load(infile)
-    except IOError:  
+    except IOError:
         old_stations = {}
         for filename in glob.glob("./data/*.xml"):
             old_stations = stations
@@ -250,7 +252,7 @@ def reload_data():
     for filename in glob.glob("./data/*.xml"):
         JPS, root, stations, line = load_xml(filename, stations)
         journeys = journey_parse(root, JPS, line, journeys, stations)
-    
+
     with open('journeys1.txt', 'w') as outfile:
         json.dump(journeys, outfile)
     old_stations = {}
@@ -286,6 +288,14 @@ def LL84toEN(longitude, latitude):
     vlon36, vlat36 = transform(v84, v36, longitude, latitude)
     return vgrid(vlon36, vlat36)
 
+def station_from_name(name, stations):
+    out = []
+    for station, value in stations.items():
+        if (value==name):
+            st = station[:-1]
+            out.append(st)
+    return set(out)
+
 def nearest_stations(lat,lon,number,stations):
     '''
     Find the number of nearest stations
@@ -303,4 +313,4 @@ def nearest_stations(lat,lon,number,stations):
         except TypeError:
             pass
     near_list = sorted(near_list)[0:number]
-    return near_list        
+    return near_list
