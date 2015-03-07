@@ -3,7 +3,7 @@ mkdir ./data
 mkdir ./data1
 wget "http://data.tfl.gov.uk/tfl/syndication/feeds/journey-planner-timetables.zip?<API-KEY>" -O ./data.zip
 unzip -o data.zip
-unzip -o LULDLRRiverTramCable.zip -d ./data1
+unzip -o LULDLRTramRiverCable.zip -d ./data1
 for file in ./data1/*
   do
     if [[ $file != *tfl_1-* ]]
