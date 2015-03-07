@@ -11,7 +11,7 @@ for file in ./data1/*
         rm $file
     fi
   done
-unzip -o LULDLRTramRiverCable.zip "tfl_25-DLR_-6-y05.xml" -d ./data1
+unzip -o LULDLRTramRiverCable.zip "tfl_25-DLR_-77-y05.xml" -d ./data1
 #the schema info makes life hard
 #so dump it
 for f in ./data1/*.xml
