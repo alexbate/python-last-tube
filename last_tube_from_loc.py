@@ -31,11 +31,26 @@ def get_last_by_code(incode):
 
 @app.route('/getname/<name>')
 def get_last_by_name(name):
+    out = []
+    global stations
+    global journeys
     global mtime
+    if(name == 'Paddington'):
+        #If the journeys have been reloaded then read again.
+        if os.path.getmtime('journeys.txt') > mtime:
+            mtime = os.path.getmtime('journeys.txt')
+            stations, journeys = last_tube.load_data()
+        codes = last_tube.station_from_name(name + " (H&C Line)", stations)
+        day = datetime.now().strftime('%A')
+        aday = timedelta(days = 1)
+        #If it's after midnight we still want "Todays'" last tube
+        if datetime.now().hour >= 0 and datetime.now().hour < 4:
+            day = (datetime.now() - aday).strftime('%A')
+        for code in codes:
+            out += last_tube.get_last_all(code, day, stations, journeys)
+
     #If the journeys have been reloaded then read again.
     if os.path.getmtime('journeys.txt') > mtime:
-        global stations
-        global journeys
         mtime = os.path.getmtime('journeys.txt')
         stations, journeys = last_tube.load_data()
     codes = last_tube.station_from_name(name, stations)
@@ -44,7 +59,6 @@ def get_last_by_name(name):
     #If it's after midnight we still want "Todays'" last tube
     if datetime.now().hour >= 0 and datetime.now().hour < 4:
         day = (datetime.now() - aday).strftime('%A')
-    out = []
     for code in codes:
         out += last_tube.get_last_all(code, day, stations, journeys)
     return json.dumps(out)
